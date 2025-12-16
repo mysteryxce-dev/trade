@@ -1,0 +1,17 @@
+steps:
+# Schritt 1: Das Dockerfile verwenden, um das Container-Image zu bauen
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/momentum-bot-service', '.']
+  
+# Schritt 2: Das Image in der Artifact Registry speichern (pushen)
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'gcr.io/$PROJECT_ID/momentum-bot-service']
+  
+images:
+- 'gcr.io/$PROJECT_ID/momentum-bot-service'
+
+options:
+  # HIER WIRD DER FEHLER BEHOBEN:
+  # Wir weisen Cloud Build an, nur Cloud Logging zu verwenden,
+  # anstatt Logs in einen Storage Bucket schreiben zu müssen.
+  logging: CLOUD_LOGGING_ONLY
