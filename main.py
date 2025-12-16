@@ -39,10 +39,8 @@ def berechne_momentum_ranking(etf_liste, monate):
                 schlusskurse = daten['Adj Close']
             elif 'Close' in daten.columns:
                 schlusskurse = daten['Close']
-            else:
-                protokoll.append(f"FEHLER: Ticker {ticker} enthält weder 'Adj Close' noch 'Close' Spalten.")
-                continue
-            
+            # ... (Logik zur Auswahl von schlusskurse) ...
+
             # --- NEUE ROBUSTE PRÜFUNG HIER ---
             if len(schlusskurse) < 2:
                 protokoll.append(f"WARNUNG: Nicht genug Datenpunkte für {ticker} ({len(schlusskurse)}).")
@@ -110,4 +108,5 @@ def momentum_service():
     print(ergebnis_message)
     
     return ergebnis_message, 200
+
 
