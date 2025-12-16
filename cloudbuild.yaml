@@ -24,4 +24,11 @@ steps:
       '--platform', 'managed',
       '--allow-unauthenticated' # Notwendig für den Cloud Scheduler (oder den Browser-Test)
   ]
-timeout: '1600s' # Erhöhen Sie das Timeout für den gesamten Build auf 1600 Sekunden (ca. 26 Minuten)
+
+# NEUER ABSCHNITT: Behebt den "invalid argument" Fehler
+options:
+  # Weist Cloud Build an, Logs nur in Cloud Logging zu speichern.
+  # Dies erfüllt die Bedingung (c) in der Fehlermeldung.
+  logging: CLOUD_LOGGING_ONLY 
+
+timeout: '1600s'
