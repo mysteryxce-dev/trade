@@ -1,23 +1,25 @@
-# Verwenden Sie ein schlankes Python-Basis-Image
+# 1. Basis-Image festlegen
+# Verwenden Sie ein schlankes Python-Basis-Image für geringere Größe
 FROM python:3.11-slim
 
-# Setzen Sie das Arbeitsverzeichnis
+# 2. Arbeitsverzeichnis setzen
 WORKDIR /usr/src/app
 
-# Kopieren und Installieren der Abhängigkeiten
+# 3. Abhängigkeiten kopieren und installieren
+# Zuerst requirements.txt kopieren
 COPY requirements.txt .
+
+# Pakete installieren (Pandas, yfinance, gunicorn, Flask)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Kopieren Sie den Hauptcode
+# 4. Hauptcode kopieren
+# main.py in das Arbeitsverzeichnis kopieren
 COPY main.py .
 
-# WICHTIG: Kein explizites ENV PORT 8080 mehr, da Cloud Run es injiziert.
-# Wir setzen nur den Gunicorn-Befehl:
-# CMD exec gunicorn --bind 0.0.0.0:$PORT --workers 1 main:app
-
-# Letzter Versuch: Hardcodierte Bindung, um die Umgebungsvariable auszuschließen, 
-# falls es ein Problem mit der Cloud Run Injektion gibt.
-ENV PORT 8080
-# ÄNDERUNG: Bindung direkt an den erforderlichen Port 8080
+# 5. Startbefehl (Der kritischste Teil)
+# Cloud Run injiziert automatisch die Umgebungsvariable $PORT=8080.
+# Wir verwenden das robuste Shell-Format (nicht das JSON-Array-Format).
+# 'gunicorn -w 1': Eine Worker-Instanz starten.
+# '-b 0.0.0.0:$PORT': An alle Adressen auf dem erwarteten Port binden (löst 404/Bindungsfehler).
+# 'main:app': Startet die Flask-Instanz 'app' aus der Datei 'main.py'.
 CMD gunicorn -w 1 -b 0.0.0.0:$PORT main:app
-
