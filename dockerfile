@@ -17,6 +17,7 @@ COPY main.py .
 
 # Letzter Versuch: Hardcodierte Bindung, um die Umgebungsvariable auszuschließen, 
 # falls es ein Problem mit der Cloud Run Injektion gibt.
-
+ENV PORT 8080
 # ÄNDERUNG: Bindung direkt an den erforderlichen Port 8080
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "main:app"]
+CMD gunicorn -w 1 -b 0.0.0.0:$PORT main:app
+
