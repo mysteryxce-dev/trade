@@ -35,7 +35,6 @@ def berechne_momentum_ranking(etf_liste, monate):
                 continue
 
             # LOGIK ZUR BEHEBUNG DES 'Adj Close' FEHLERS:
-            # Prüfen, ob 'Adj Close' existiert, ansonsten 'Close' verwenden.
             if 'Adj Close' in daten.columns:
                 schlusskurse = daten['Adj Close']
             elif 'Close' in daten.columns:
@@ -44,21 +43,36 @@ def berechne_momentum_ranking(etf_liste, monate):
                 protokoll.append(f"FEHLER: Ticker {ticker} enthält weder 'Adj Close' noch 'Close' Spalten.")
                 continue
             
-            # Berechnung der Rendite
+            # --- NEUE ROBUSTE PRÜFUNG HIER ---
+            if len(schlusskurse) < 2:
+                protokoll.append(f"WARNUNG: Nicht genug Datenpunkte für {ticker} ({len(schlusskurse)}).")
+                continue
+            
             start_kurs = schlusskurse.iloc[0]
             end_kurs = schlusskurse.iloc[-1]
+            
+            # Fehlerbehandlung, falls Kurse nicht numerisch sind (z.B. NaN)
+            if not isinstance(start_kurs, (int, float)) or not isinstance(end_kurs, (int, float)):
+                 protokoll.append(f"WARNUNG: Start- oder Endkurs für {ticker} ist kein gültiger Wert.")
+                 continue
 
             rendite = (end_kurs / start_kurs - 1) * 100
-            performance_daten[ticker] = rendite
             
-            protokoll.append(f"[{ticker}]: Rendite: {rendite:.2f}%")
-
+            # Stellen Sie sicher, dass die Rendite nicht NaN ist, bevor Sie sie speichern
+            if pd.notna(rendite):
+                performance_daten[ticker] = rendite
+                protokoll.append(f"[{ticker}]: Rendite: {rendite:.2f}%")
+            else:
+                protokoll.append(f"WARNUNG: Rendite für {ticker} ist ungültig (NaN).")
+                
         except Exception as e:
-            protokoll.append(f"FEHLER beim Abrufen der Daten für {ticker}: {e}")
+            protokoll.append(f"KRITISCHER FEHLER beim Abrufen/Berechnen für {ticker}: {e}")
             continue
 
     if not performance_daten:
-        return "FEHLER: Keine Performance-Daten verfügbar.", protokoll
+        return "FEHLER: Keine Performance-Daten verfügbar, da alle Ticker fehlgeschlagen sind.", protokoll
+    
+    # ... (Rest der Funktion unverändert)
         
     # Ranking erstellen
     ranking = pd.Series(performance_daten).sort_values(ascending=False)
@@ -96,3 +110,4 @@ def momentum_service():
     print(ergebnis_message)
     
     return ergebnis_message, 200
+
