@@ -11,16 +11,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Kopiere den Hauptcode
 COPY main.py .
 
-# Standardmäßige Umgebungsvariable
+# Wir definieren den PORT, den Cloud Run erwartet
 ENV PORT 8080
 
-# Starte den Webserver mit Gunicorn, der die Funktion 'momentum_service' aus main.py aufruft
+# WICHTIG: Korrigierter Startbefehl
+# main:app weist Gunicorn an, die Instanz 'app' in main.py zu finden
+CMD exec gunicorn --bind 0.0.0.0:$PORT --workers 1 main:app
 
-CMD exec gunicorn --bind :$PORT --workers 1 main:momentum_service
-# ... (Vorherige Zeilen unverändert) ...
-
-# Standardmäßige Umgebungsvariable
-ENV PORT 8080
-
-# Korrigierter Startbefehl: main:app weist Gunicorn an, die Instanz 'app' in main.py zu finden
-CMD exec gunicorn --bind :$PORT --workers 1 main:app
