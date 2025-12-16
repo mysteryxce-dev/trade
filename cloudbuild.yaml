@@ -1,17 +1,27 @@
 steps:
-# Schritt 1: Das Dockerfile verwenden, um das Container-Image zu bauen
+# 1. Image bauen (mit Dockerfile)
+# Das Image wird lokal gebaut und mit einem Tag versehen, der die Projekt-ID enthält.
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'gcr.io/$PROJECT_ID/momentum-bot-service', '.']
-  
-# Schritt 2: Das Image in der Artifact Registry speichern (pushen)
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'gcr.io/$PROJECT_ID/momentum-bot-service']
-  
-images:
-- 'gcr.io/$PROJECT_ID/momentum-bot-service'
+  id: Build-Image
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/momentum-bot-image:latest', '.']
 
-options:
-  # HIER WIRD DER FEHLER BEHOBEN:
-  # Wir weisen Cloud Build an, nur Cloud Logging zu verwenden,
-  # anstatt Logs in einen Storage Bucket schreiben zu müssen.
-  logging: CLOUD_LOGGING_ONLY
+# 2. Image in die Artifact Registry/GCR pushen
+# Das Image wird in die Google Container Registry des Projekts hochgeladen.
+- name: 'gcr.io/cloud-builders/docker'
+  id: Push-Image
+  args: ['push', 'gcr.io/$PROJECT_ID/momentum-bot-image:latest']
+
+# 3. Image in Cloud Run bereitstellen
+# Der kritische Deployment-Schritt.
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: Deploy-Service
+  args: [
+      'run',
+      'deploy',
+      'momentum-bot-signal', # <--- WICHTIG: Der neue, eindeutige Dienstname
+      '--image', 'gcr.io/$PROJECT_ID/momentum-bot-image:latest',
+      '--region', 'europe-west3', # <--- PRÜFEN SIE IHRE REGION HIER!
+      '--platform', 'managed',
+      '--allow-unauthenticated' # Notwendig für den Cloud Scheduler (oder den Browser-Test)
+  ]
+timeout: '1600s' # Erhöhen Sie das Timeout für den gesamten Build auf 1600 Sekunden (ca. 26 Minuten)
