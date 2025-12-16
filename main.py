@@ -1,16 +1,16 @@
 import pandas as pd
 import yfinance as yf
 from datetime import datetime, timedelta
-from flask import Flask, request # Notwendig für Web-Endpunkt
+from flask import Flask, request 
 
 # --- 1. Strategie-Parameter ---
-# Hier können Sie Ihre Ticker und Parameter anpassen
-ETF_LISTE = ['VUSA.DE', 'SWRD.L', 'VWCE.DE', 'IS3N.DE']
+# Extrem zuverlässige, globale/US-Markt-ETFs, die mit yfinance funktionieren
+# QQQ: Nasdaq 100 / SPY: S&P 500 / IWM: Russell 2000 / AGG: US Aggregate Bonds
+ETF_LISTE = ['QQQ', 'SPY', 'IWM', 'AGG'] 
 PERFORMANCE_MONATE = 3 
 TOP_N = 3
 
 # --- 2. Flask-Anwendung erstellen ---
-# Dies muss hier erfolgen, damit Gunicorn (main:app) es findet
 app = Flask(__name__) 
 
 # --- 3. Hauptlogik zur Berechnung des Momentums ---
@@ -34,11 +34,17 @@ def berechne_momentum_ranking(etf_liste, monate):
                 protokoll.append(f"WARNUNG: Keine Daten für {ticker} gefunden.")
                 continue
 
-            # Berechnung der Rendite
+            # LOGIK ZUR BEHEBUNG DES 'Adj Close' FEHLERS:
+            # Prüfen, ob 'Adj Close' existiert, ansonsten 'Close' verwenden.
             if 'Adj Close' in daten.columns:
-    schlusskurse = daten['Adj Close']
-else:
-    schlusskurse = daten['Close']
+                schlusskurse = daten['Adj Close']
+            elif 'Close' in daten.columns:
+                schlusskurse = daten['Close']
+            else:
+                protokoll.append(f"FEHLER: Ticker {ticker} enthält weder 'Adj Close' noch 'Close' Spalten.")
+                continue
+            
+            # Berechnung der Rendite
             start_kurs = schlusskurse.iloc[0]
             end_kurs = schlusskurse.iloc[-1]
 
@@ -59,14 +65,13 @@ else:
     return ranking, protokoll
 
 
-# --- 4. Der Cloud Run Endpunkt (wird vom Scheduler aufgerufen) ---
-@app.route("/", methods=["GET"]) # MUSS "/" sein, um den Fehler zu beheben
+# --- 4. Der Cloud Run Endpunkt (Web-Service) ---
+@app.route("/", methods=["GET"]) 
 def momentum_service():
     """Der HTTP-Endpunkt, der bei Aufruf die Logik ausführt."""
     ranking, protokoll = berechne_momentum_ranking(ETF_LISTE, PERFORMANCE_MONATE)
     
-    ergebnis_message = ""
-    ergebnis_message += "="*50 + "\n"
+    ergebnis_message = "="*50 + "\n"
     ergebnis_message += "🤖 AUTOMATISIERTE KI-KAUFENTSCHEIDUNG 🤖\n"
     ergebnis_message += "="*50 + "\n"
     
@@ -88,12 +93,6 @@ def momentum_service():
         # Fehlerfall aus der Logik
         ergebnis_message += ranking
 
-    # Das Ergebnis in die Cloud Run Logs schreiben
     print(ergebnis_message)
     
-    # Rückgabe des Ergebnisses mit dem HTTP-Statuscode 200 (OK)
     return ergebnis_message, 200
-
-# WICHTIG: Kein if __name__ == "__main__": Block hier, 
-# da Gunicorn die App über main:app startet.
-
