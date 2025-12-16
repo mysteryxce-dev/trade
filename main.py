@@ -31,7 +31,6 @@ def berechne_momentum_ranking(etf_liste, monate):
     for ticker in etf_liste:
         try:
             # Daten von Yahoo Finance abrufen
-            # Beachte: Der Endpunkt ist jetzt 'end_datum' (gestern)
             daten = yf.download(ticker, start=start_datum, end=end_datum, progress=False)
             
             if daten.empty:
@@ -39,6 +38,7 @@ def berechne_momentum_ranking(etf_liste, monate):
                 continue
 
             # LOGIK ZUR BEHEBUNG DES 'Adj Close' FEHLERS:
+            # Versuche 'Adj Close', sonst 'Close'.
             if 'Adj Close' in daten.columns:
                 schlusskurse = daten['Adj Close']
             elif 'Close' in daten.columns:
@@ -47,24 +47,23 @@ def berechne_momentum_ranking(etf_liste, monate):
                 protokoll.append(f"FEHLER: Ticker {ticker} enthält weder 'Adj Close' noch 'Close' Spalten.")
                 continue
 
-            # --- FINALE KORREKTUR: NaN-Werte entfernen und gültige Kurse extrahieren ---
+            # --- FINALE KORREKTUR: NaN-Werte entfernen und gültige Kurse erzwingen ---
             
-            # 1. Entferne NaN-Werte aus der Serie (sehr wichtig für den ersten/letzten Tag!)
+            # 1. Entferne NaN-Werte aus der Serie (um Ränderprobleme zu vermeiden)
             schlusskurse_clean = schlusskurse.dropna()
             
             if len(schlusskurse_clean) < 2:
                 protokoll.append(f"WARNUNG: Nicht genug gültige Datenpunkte für {ticker} ({len(schlusskurse_clean)}).")
                 continue
             
-            # 2. Extrahiere den ERSTEN gültigen und den LETZTEN gültigen Kurs
-            start_kurs = schlusskurse_clean.iloc[0]
-            end_kurs = schlusskurse_clean.iloc[-1]
+            # 2. Extrahiere und erzwinge Float-Typ, um Datentyp-Fehler (500er) zu vermeiden
+            try:
+                start_kurs = float(schlusskurse_clean.iloc[0])
+                end_kurs = float(schlusskurse_clean.iloc[-1])
+            except ValueError:
+                protokoll.append(f"KRITISCHER FEHLER: Konnte Kursdaten für {ticker} nicht in Zahlen umwandeln.")
+                continue
             
-            # Fehlerbehandlung, falls Kurse wider Erwarten immer noch nicht numerisch sind
-            if not isinstance(start_kurs, (int, float)) or not isinstance(end_kurs, (int, float)):
-                 protokoll.append(f"WARNUNG: Nach der Bereinigung ist Start- oder Endkurs für {ticker} kein gültiger Wert.")
-                 continue
-
             rendite = (end_kurs / start_kurs - 1) * 100
             
             # Stellen Sie sicher, dass die Rendite nicht NaN ist, bevor Sie sie speichern
@@ -82,6 +81,7 @@ def berechne_momentum_ranking(etf_liste, monate):
         return "FEHLER: Keine Performance-Daten verfügbar, da alle Ticker fehlgeschlagen sind.", protokoll
         
     # Ranking erstellen
+    # Die Sortierung funktioniert jetzt, da 'performance_daten' nur Floats enthält
     ranking = pd.Series(performance_daten).sort_values(ascending=False)
     return ranking, protokoll
 
@@ -91,7 +91,6 @@ def berechne_momentum_ranking(etf_liste, monate):
 def momentum_service():
     """Der HTTP-Endpunkt, der bei Aufruf die Logik ausführt."""
     
-    # Stellen Sie sicher, dass der Bot nur einmal pro Aufruf die Daten abruft
     ranking, protokoll = berechne_momentum_ranking(ETF_LISTE, PERFORMANCE_MONATE)
     
     ergebnis_message = "="*50 + "\n"
@@ -121,7 +120,3 @@ def momentum_service():
     
     # Rückgabe des Ergebnisses an den Cloud Run Aufrufer
     return ergebnis_message, 200
-
-# Dies ist der Cloud Run / Gunicorn Startpunkt, muss nicht geändert werden
-# if __name__ == "__main__":
-#     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
