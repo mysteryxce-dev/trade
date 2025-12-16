@@ -5,7 +5,7 @@ from flask import Flask, request # Notwendig für Web-Endpunkt
 
 # --- 1. Strategie-Parameter ---
 # Hier können Sie Ihre Ticker und Parameter anpassen
-ETF_LISTE = ['VWCE.DE', 'ISIN.DE', 'SWRD.DE', 'EMIM.DE'] 
+ETF_LISTE = ['VUSA.DE', 'SWRD.L', 'VWCE.DE', 'IS3N.DE']
 PERFORMANCE_MONATE = 3 
 TOP_N = 3
 
@@ -35,7 +35,10 @@ def berechne_momentum_ranking(etf_liste, monate):
                 continue
 
             # Berechnung der Rendite
-            schlusskurse = daten['Adj Close']
+            if 'Adj Close' in daten.columns:
+    schlusskurse = daten['Adj Close']
+else:
+    schlusskurse = daten['Close']
             start_kurs = schlusskurse.iloc[0]
             end_kurs = schlusskurse.iloc[-1]
 
@@ -93,3 +96,4 @@ def momentum_service():
 
 # WICHTIG: Kein if __name__ == "__main__": Block hier, 
 # da Gunicorn die App über main:app startet.
+
