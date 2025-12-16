@@ -1,21 +1,19 @@
 import pandas as pd
 import yfinance as yf
 from datetime import datetime, timedelta
-import os
+from flask import Flask, request # NEU: Flask importiert
 
 # --- 1. Strategie-Parameter ---
-# Ticker für globale ETFs (passen Sie diese bei Bedarf an)
-# Stellen Sie sicher, dass diese Ticker auf Ihrer Handelsplattform verfügbar sind.
 ETF_LISTE = ['VWCE.DE', 'ISIN.DE', 'SWRD.DE', 'EMIM.DE'] 
-PERFORMANCE_MONATE = 3 # Momentum-Periode
-TOP_N = 3 # Anzahl der besten ETFs, die gekauft werden sollen
+PERFORMANCE_MONATE = 3 
+TOP_N = 3
 
+# Die Hauptlogik bleibt unverändert
 def berechne_momentum_ranking(etf_liste, monate):
-    """
-    Berechnet die prozentuale Rendite der ETFs über N Monate.
-    """
+    # ... (Ihr bisheriger Code zur Berechnung des Rankings hier unverändert einfügen) ...
+    # Behalten Sie die return-Werte bei: return ranking, protokoll
+    # ******************************************************************************
     heute = datetime.now()
-    # Wir ziehen etwas mehr als N Monate ab, um sicher Daten zu erhalten
     start_datum = heute - timedelta(days=monate * 31)
 
     performance_daten = {}
@@ -25,14 +23,11 @@ def berechne_momentum_ranking(etf_liste, monate):
 
     for ticker in etf_liste:
         try:
-            # Daten abrufen
             daten = yf.download(ticker, start=start_datum, end=heute, progress=False)
-
             if daten.empty:
                 protokoll.append(f"WARNUNG: Keine Daten für {ticker} gefunden.")
                 continue
 
-            # Performance berechnen
             schlusskurse = daten['Adj Close']
             start_kurs = schlusskurse.iloc[0]
             end_kurs = schlusskurse.iloc[-1]
@@ -51,12 +46,14 @@ def berechne_momentum_ranking(etf_liste, monate):
         
     ranking = pd.Series(performance_daten).sort_values(ascending=False)
     return ranking, protokoll
+    # ******************************************************************************
 
-# --- Hauptfunktion für Cloud Run ---
-def momentum_service(request):
-    """
-    Cloud Run erwartet eine Hauptfunktion, die eine Anfrage entgegennimmt.
-    """
+
+# --- 2. Flask-Anwendung erstellen und Logik einbetten ---
+app = Flask(__name__) # Flask-App-Instanz erstellen
+
+@app.route("/", methods=["GET"]) # Definiere den Endpunkt, den Gunicorn aufrufen soll
+def momentum_service():
     ranking, protokoll = berechne_momentum_ranking(ETF_LISTE, PERFORMANCE_MONATE)
     
     ergebnis_message = ""
@@ -80,11 +77,9 @@ def momentum_service(request):
     else:
         ergebnis_message += ranking
 
-    print(ergebnis_message) # Wichtig für die Cloud Run Logs
-
-    # Cloud Run benötigt eine HTTP-Antwort
+    print(ergebnis_message)
+    
+    # Rückgabe des Ergebnisses (im Header 200)
     return ergebnis_message, 200
 
-if __name__ == "__main__":
-    # Lokaler Test
-    print(momentum_service(None)[0])
+# Entfernen Sie den if __name__ == "__main__": Block, da Gunicorn die App startet.
